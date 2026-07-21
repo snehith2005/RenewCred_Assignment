@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: renewcred-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - renewcred-net
+
+  backend:
+    build: ./backend
+    container_name: renewcred-backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    env_file:
+      - ./backend/.env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/renewcred
+    depends_on:
+      - mongo
+    networks:
+      - renewcred-net
+
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+    container_name: renewcred-admin
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    depends_on:
+      - backend
+    networks:
+      - renewcred-net
+
+  public-frontend:
+    build:
+      context: ./public-frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5000/api/v1
+    container_name: renewcred-public
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - API_INTERNAL_URL=http://backend:5000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - renewcred-net
+
+networks:
+  renewcred-net:
+    driver: bridge
+
+volumes:
+  mongo_data:
